@@ -7,9 +7,8 @@ on:
 
 env:
   PLATFORMS: linux/arm64
-  DOCKERHUB_USERNAME: helllord
-  DOCKERHUB_REPOSITORY: lookscanned.io
-  TAG_GIT_COMMIT: rwv/lookscanned.io
+  SOURCE_REPOSITORY: rwv/lookscanned.io
+  DOCKERHUB_REPOSITORY: helllord/lookscanned.io
 
 jobs:
   get-tag:
@@ -23,18 +22,20 @@ jobs:
           repository: hellbot77/get-tag
           sparse-checkout: get_tag.py
           sparse-checkout-cone-mode: false
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3
       - name: Get Docker image tag
         id: get-tag
-        run: python get_tag.py ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }} --git-commit ${{ env.TAG_GIT_COMMIT }} >> $GITHUB_OUTPUT
+        run: >
+          python3 get_tag.py ${{ github.event_name != 'workflow_dispatch' && env.DOCKERHUB_REPOSITORY || '""' }}
+          --gh-commit ${{ env.SOURCE_REPOSITORY }} >> $GITHUB_OUTPUT
+
   build-push:
     needs: get-tag
     if: ${{ needs.get-tag.outputs.tag }}
     runs-on: ubuntu-latest
     steps:
+      - name: Set Docker Hub username
+        id: dockerhub-username
+        run: echo "username=${DOCKERHUB_REPOSITORY%%/*}" >> $GITHUB_OUTPUT
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -44,7 +45,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
+          username: ${{ steps.dockerhub-username.outputs.username }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -53,8 +54,9 @@ jobs:
           push: true
           build-args: TAG=${{ needs.get-tag.outputs.tag }}
           tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}:${{ needs.get-tag.outputs.tag }}
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}:latest
+            ${{ env.DOCKERHUB_REPOSITORY }}:${{ needs.get-tag.outputs.tag }}
+            ${{ env.DOCKERHUB_REPOSITORY }}:latest
+
   cancel-action:
     needs: get-tag
     if: ${{ !needs.get-tag.outputs.tag }}
