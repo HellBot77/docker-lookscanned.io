@@ -14,7 +14,6 @@ RUN npm install --global pnpm && \
     pnpm install && \
     pnpm run build
 
-FROM pierrezemb/gostatic
+FROM lipanski/docker-static-website
 
-COPY --from=build /lookscanned.io/dist /srv/http
-EXPOSE 8043
+COPY --from=build /lookscanned.io/dist .
