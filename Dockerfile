@@ -11,8 +11,9 @@ FROM node:alpine AS build
 WORKDIR /lookscanned.io
 COPY --from=base /git/lookscanned.io .
 RUN npm install --global pnpm && \
+    export COREPACK_ENABLE_STRICT=0 && \
     pnpm install && \
-    pnpm run build
+    pnpm build
 
 FROM lipanski/docker-static-website
 
